@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+
+{% block title %}Model Training &amp; Comparison - WaterGuard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="fw-bold text-dark mb-1">Classifier Training Pipeline</h2>
+    <p class="text-muted">Train, evaluate, and compare Support Vector Machine (SVM) and K-Nearest Neighbors (KNN) algorithms on the engineered customer features.</p>
+</div>
+
+<div class="row">
+    <!-- Training Setup -->
+    <div class="col-lg-4 mb-4">
+        <div class="form-card h-100">
+            <h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-sliders text-primary me-2"></i> Pipeline Setup</h5>
+            <hr class="mt-0">
+            
+            <form method="POST">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="id_test_size" class="form-label fw-semibold text-muted small">Test Set Split Ratio</label>
+                    <select name="test_size" id="id_test_size" class="form-select">
+                        <option value="0.10">10% (Holdout validation)</option>
+                        <option value="0.20" selected>20% (Recommended default)</option>
+                        <option value="0.30">30% (Standard testing)</option>
+                    </select>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="id_random_state" class="form-label fw-semibold text-muted small">Random Seed (Reproducibility)</label>
+                    <input type="number" name="random_state" id="id_random_state" value="42" class="form-control">
+                </div>
+                
+                <div class="mb-3 card border-info-subtle bg-info-subtle p-3">
+                    <h6 class="fw-bold text-info-emphasis mb-1 small"><i class="fa-solid fa-circle-info"></i> Pipeline Configs:</h6>
+                    <ul class="small text-info-emphasis ps-3 mb-0">
+                        <li>StandardScaler normalization</li>
+                        <li>Balanced SVM class weights</li>
+                        <li>KNN distance-weighted voting</li>
+                        <li>Stratified training splits</li>
+                    </ul>
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">
+                    <i class="fa-solid fa-brain me-2"></i> Retrain Classifiers
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Model Comparison Metrics -->
+    <div class="col-lg-8 mb-4">
+        <div class="custom-table-card h-100">
+            <div class="custom-table-header">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-scale-balanced text-success me-2"></i> Model Performance comparison</h5>
+            </div>
+            
+            <div class="p-3">
+                {% if results %}
+                    <div class="alert alert-success py-2 d-flex justify-content-between align-items-center mb-3">
+                        <span><i class="fa-solid fa-circle-check"></i> <strong>Training completed!</strong> Ingested {{ results.dataset_size }} customers. Best Model: <strong>{{ results.comparison.best_model }}</strong></span>
+                    </div>
+                    
+                    <table class="table table-bordered text-center align-middle mb-4">
+                        <thead class="table-light text-uppercase small fw-bold">
+                            <tr>
+                                <th>Algorithm</th>
+                                <th>Accuracy</th>
+                                <th>Precision</th>
+                                <th>Recall</th>
+                                <th>F1-Score</th>
+                                <th>ROC-AUC</th>
+                                <th>Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="fw-bold text-teal">Support Vector Machine (SVM)</td>
+                                <td>{{ results.svm_metrics.accuracy|floatformat:4 }}</td>
+                                <td>{{ results.svm_metrics.precision|floatformat:4 }}</td>
+                                <td>{{ results.svm_metrics.recall|floatformat:4 }}</td>
+                                <td class="fw-bold text-primary">{{ results.svm_metrics.f1|floatformat:4 }}</td>
+                                <td>{{ results.svm_metrics.roc_auc|floatformat:4 }}</td>
+                                <td>{{ results.svm_metrics.roc_auc|floatformat:4 }}s</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold text-navy">K-Nearest Neighbors (KNN)</td>
+                                <td>{{ results.knn_metrics.accuracy|floatformat:4 }}</td>
+                                <td>{{ results.knn_metrics.precision|floatformat:4 }}</td>
+                                <td>{{ results.knn_metrics.recall|floatformat:4 }}</td>
+                                <td class="fw-bold text-primary">{{ results.knn_metrics.f1|floatformat:4 }}</td>
+                                <td>{{ results.knn_metrics.roc_auc|floatformat:4 }}</td>
+                                <td>{{ results.knn_metrics.roc_auc|floatformat:4 }}s</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div class="text-muted small">
+                        * In water fraud detection, F1-Score and Recall are the primary metric targets to balance missing actual leaks while preventing excessive false investigations.
+                    </div>
+                {% elif latest_run %}
+                    <div class="alert alert-info py-2 mb-3">
+                        <span><i class="fa-solid fa-info-circle"></i> Active models trained on: <strong>{{ latest_run.created_at|date:"Y-m-d H:i" }}</strong></span>
+                    </div>
+                    
+                    <table class="table table-bordered text-center align-middle">
+                        <thead class="table-light text-uppercase small fw-bold">
+                            <tr>
+                                <th>Algorithm</th>
+                                <th>Accuracy</th>
+                                <th>Precision</th>
+                                <th>Recall</th>
+                                <th>F1-Score</th>
+                                <th>ROC-AUC</th>
+                                <th>File Path</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="fw-bold">SVM</td>
+                                <td>{% if latest_run.model_name == 'SVM' %}{{ latest_run.accuracy|floatformat:4 }}{% else %}-{% endif %}</td>
+                                <td>{% if latest_run.model_name == 'SVM' %}{{ latest_run.precision|floatformat:4 }}{% else %}-{% endif %}</td>
+                                <td>{% if latest_run.model_name == 'SVM' %}{{ latest_run.recall|floatformat:4 }}{% else %}-{% endif %}</td>
+                                <td class="fw-bold">{% if latest_run.model_name == 'SVM' %}{{ latest_run.f1|floatformat:4 }}{% else %}-{% endif %}</td>
+                                <td>{% if latest_run.model_name == 'SVM' %}{{ latest_run.roc_auc|floatformat:4 }}{% else %}-{% endif %}</td>
+                                <td><code class="small">models/svm_model.joblib</code></td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">KNN</td>
+                                <td>{% if latest_run.model_name == 'KNN' %}{{ latest_run.accuracy|floatformat:4 }}{% else %}-{% endif %}</td>
+                                <td>{% if latest_run.model_name == 'KNN' %}{{ latest_run.precision|floatformat:4 }}{% else %}-{% endif %}</td>
+                                <td>{% if latest_run.model_name == 'KNN' %}{{ latest_run.recall|floatformat:4 }}{% else %}-{% endif %}</td>
+                                <td class="fw-bold">{% if latest_run.model_name == 'KNN' %}{{ latest_run.f1|floatformat:4 }}{% else %}-{% endif %}</td>
+                                <td>{% if latest_run.model_name == 'KNN' %}{{ latest_run.roc_auc|floatformat:4 }}{% else %}-{% endif %}</td>
+                                <td><code class="small">models/knn_model.joblib</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="p-5 text-center text-muted">
+                        <i class="fa-solid fa-triangle-exclamation fs-1 text-warning mb-2"></i>
+                        <p class="mb-0 fw-semibold">No models trained yet.</p>
+                        <p class="small">Click "Retrain Classifiers" to split, scale and train SVM and KNN on current customer consumptions.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if results or models_exist %}
+<div class="row">
+    <!-- Confusion Matrix -->
+    <div class="col-md-6 mb-4">
+        <div class="chart-container">
+            <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-cubes text-info me-2"></i> SVM Confusion Matrix Heatmap</h5>
+            {% if confusion_matrix_url %}
+                <div class="text-center">
+                    <img src="{{ confusion_matrix_url }}?t={% now 'U' %}" class="img-fluid rounded border shadow-sm" alt="SVM Confusion Matrix" style="max-height: 350px;">
+                </div>
+            {% else %}
+                <div class="p-5 text-center text-muted">Image file pending. Retrain to generate plot.</div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Performance plot -->
+    <div class="col-md-6 mb-4">
+        <div class="chart-container">
+            <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-column text-primary me-2"></i> SVM vs KNN Scores Bar Chart</h5>
+            {% if comparison_plot_url %}
+                <div class="text-center">
+                    <img src="{{ comparison_plot_url }}?t={% now 'U' %}" class="img-fluid rounded border shadow-sm" alt="Model Comparison" style="max-height: 350px;">
+                </div>
+            {% else %}
+                <div class="p-5 text-center text-muted">Comparison graph pending. Retrain to generate plot.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

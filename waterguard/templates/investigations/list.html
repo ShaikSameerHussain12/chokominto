@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}Inspections Pipeline - WaterGuard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="fw-bold text-dark mb-1">Inspections Pipeline</h2>
+    <p class="text-muted">Monitor scheduled physical customer checks, meter audits, and recorded confirmation outcomes.</p>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3">
+        <form method="GET" class="row g-3">
+            <div class="col-md-8 col-sm-6">
+                <select name="status" class="form-select w-auto">
+                    <option value="" {% if not status_filter %}selected{% endif %}>All Inspection States</option>
+                    {% for sc in status_choices %}
+                        <option value="{{ sc }}" {% if status_filter == sc %}selected{% endif %}>{{ sc }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-4 col-sm-6 d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary py-2 px-4">
+                    <i class="fa-solid fa-filter me-1"></i> Apply Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="custom-table-card">
+    <div class="custom-table-header">
+        <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-magnifying-glass-chart text-secondary me-2"></i> Inspections Directory</h5>
+        <span class="badge bg-info px-3 py-2 fw-bold">Active cases: {{ page_obj.paginator.count }}</span>
+    </div>
+    
+    {% if page_obj %}
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Customer ID</th>
+                    <th>Outcome Status</th>
+                    <th>Confirmed NTL (Fraud)</th>
+                    <th>Inspected By</th>
+                    <th>Last Updated At</th>
+                    <th>Remarks</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in page_obj %}
+                    <tr>
+                        <td class="fw-bold"><a href="{% url 'customer_detail' inv.customer_id %}" class="text-decoration-none">{{ inv.customer_id }}</a></td>
+                        <td>
+                            <span class="badge bg-{% if inv.status == 'Confirmed Fraud' %}danger{% elif inv.status == 'False Positive' %}success{% else %}warning{% endif %}">
+                                {{ inv.status }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if inv.confirmed_fraud %}
+                                <span class="text-danger fw-bold"><i class="fa-solid fa-circle-xmark"></i> YES (Confirmed Loss)</span>
+                            {% else %}
+                                <span class="text-success"><i class="fa-solid fa-circle-check"></i> NO (No NTL)</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ inv.investigated_by.username|default:"Unassigned" }}</td>
+                        <td>{{ inv.investigated_at|date:"Y-m-d H:i" }}</td>
+                        <td class="text-truncate" style="max-width: 250px;">{{ inv.remarks|default:"-" }}</td>
+                        <td>
+                            <a href="{% url 'customer_detail' inv.customer_id %}" class="btn btn-sm btn-outline-info py-1 px-3">
+                                Update Notes
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+            <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                <span class="text-muted small">Showing page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?status={{ status_filter }}&page={{ page_obj.previous_page_number }}">Previous</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for n in page_obj.paginator.page_range %}
+                            <li class="page-item {% if page_obj.number == n %}active{% endif %}">
+                                <a class="page-link" href="?status={{ status_filter }}&page={{ n }}">{{ n }}</a>
+                            </li>
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?status={{ status_filter }}&page={{ page_obj.next_page_number }}">Next</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="p-5 text-center text-muted">
+            <i class="fa-solid fa-box-open fs-2 mb-2"></i>
+            <p class="mb-0">No active physical inspections match filter query.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

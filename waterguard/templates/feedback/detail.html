@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Reply to Ticket #{{ feedback.id }} - WaterGuard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'admin_feedback' %}" class="btn btn-outline-secondary btn-sm mb-2"><i class="fa-solid fa-arrow-left"></i> Back to Inbox</a>
+    <h2 class="fw-bold text-dark mb-0">Respond to Support Ticket</h2>
+</div>
+
+<div class="row">
+    <!-- Ticket Details -->
+    <div class="col-lg-6 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-circle-question text-primary me-2"></i> Ticket Details</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless small mb-3">
+                    <tbody>
+                        <tr>
+                            <td class="fw-semibold text-muted" style="width: 120px;">Customer ID:</td>
+                            <td class="fw-bold"><a href="{% url 'customer_detail' feedback.customer_id %}" class="text-decoration-none">{{ feedback.customer_id }}</a></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Category:</td>
+                            <td><span class="badge bg-light text-dark border">{{ feedback.feedback_type }}</span></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Submitted At:</td>
+                            <td>{{ feedback.created_at|date:"Y-m-d H:i:s" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Current Status:</td>
+                            <td>
+                                <span class="badge bg-{% if feedback.status == 'Resolved' %}success{% else %}warning{% endif %}">
+                                    {{ feedback.status }}
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <h6 class="fw-bold text-dark mt-4 mb-2">Message:</h6>
+                <div class="p-3 bg-light rounded border border-secondary-subtle font-monospace small mb-0" style="white-space: pre-wrap;">{{ feedback.message }}</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Response Form -->
+    <div class="col-lg-6 mb-4">
+        <div class="form-card h-100">
+            <h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-reply text-success me-2"></i> Submit Response</h5>
+            <hr class="mt-0">
+            
+            <form method="POST">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="id_status" class="form-label fw-semibold text-muted small">Update Status</label>
+                    {{ form.status }}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="id_response" class="form-label fw-semibold text-muted small">Response Message</label>
+                    {{ form.response }}
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+                    <i class="fa-solid fa-paper-plane me-2"></i> Send Reply
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

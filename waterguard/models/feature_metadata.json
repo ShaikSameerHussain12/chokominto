@@ -1,0 +1,30 @@
+{
+    "feature_columns": [
+        "n_readings",
+        "mean_consumption",
+        "std_consumption",
+        "variance_consumption",
+        "min_consumption",
+        "max_consumption",
+        "median_consumption",
+        "coef_of_variation",
+        "skewness",
+        "kurtosis",
+        "mean_3m",
+        "mean_6m",
+        "mean_12m",
+        "trend_slope",
+        "sudden_change_ratio",
+        "zero_consumption_count",
+        "zero_consumption_ratio",
+        "negative_consumption_count",
+        "negative_consumption_ratio",
+        "reading_interval_std",
+        "location_deviation_ratio",
+        "type_deviation_ratio",
+        "mean_billing",
+        "billing_to_consumption_mean",
+        "billing_to_consumption_std"
+    ],
+    "saved_at": "2026-08-16 16:30:35"
+}

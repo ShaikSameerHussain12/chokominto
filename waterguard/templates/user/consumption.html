@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}Consumption Log - WaterGuard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="fw-bold text-dark mb-1">Consumption History</h2>
+    <p class="text-muted">Review your monthly water usage records and payment states.</p>
+</div>
+
+<div class="custom-table-card">
+    <div class="custom-table-header">
+        <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-list-ol text-secondary me-2"></i> Invoiced Readings</h5>
+        <span class="badge bg-secondary px-3 py-2 fw-bold">Records count: {{ page_obj.paginator.count }}</span>
+    </div>
+    
+    {% if page_obj %}
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Consumption Volume</th>
+                    <th>Billing Amount</th>
+                    <th>Payment Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in page_obj %}
+                    <tr>
+                        <td class="fw-semibold text-dark">{{ r.date|date:"F Y" }}</td>
+                        <td class="fw-bold text-teal">{{ r.consumption|floatformat:2 }} m³</td>
+                        <td>${{ r.billing_amount|floatformat:2 }}</td>
+                        <td>
+                            <span class="badge bg-{% if r.payment_status == 'Paid' %}success{% elif r.payment_status == 'Unpaid' %}danger{% else %}warning{% endif %}">
+                                {{ r.payment_status }}
+                            </span>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- Pagination controls -->
+        {% if page_obj.has_other_pages %}
+            <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                <span class="text-muted small">Showing page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for n in page_obj.paginator.page_range %}
+                            <li class="page-item {% if page_obj.number == n %}active{% endif %}">
+                                <a class="page-link" href="?page={{ n }}">{{ n }}</a>
+                            </li>
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="p-4 text-center text-muted">
+            <i class="fa-solid fa-droplet-slash fs-2 mb-2 text-secondary"></i>
+            <p class="mb-0">No consumption records found for this account.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

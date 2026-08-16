@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+
+{% block title %}System Reports - WaterGuard{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex justify-content-between align-items-center">
+    <div>
+        <h2 class="fw-bold text-dark mb-1">System Reports Summary</h2>
+        <p class="text-muted mb-0">Academic and operational logs of the classification models and data cleaning outputs.</p>
+    </div>
+    
+    <div>
+        <a href="?export=csv" class="btn btn-primary shadow-sm fw-bold">
+            <i class="fa-solid fa-file-csv me-2"></i> Export Predictions (CSV)
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Operational summary card -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-folder-open text-primary me-2"></i> Project Summary &amp; Parameters</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-striped small">
+                    <tbody>
+                        <tr>
+                            <td class="fw-semibold text-muted" style="width: 200px;">Project Title:</td>
+                            <td class="fw-semibold">Detecting Anomalies in Water Usage Patterns Using Data Mining Techniques</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Subtitle:</td>
+                            <td>Machine Learning Based Water Consumption Fraud Detection and Decision Support System</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Research Context:</td>
+                            <td>Yarmouk Water Company (YWC), Jordan. benchmark SVM: 74%, KNN: ~70%</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Total Accounts (In DB):</td>
+                            <td class="fw-bold text-dark">{{ total_customers }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Suspicious Flags (Current):</td>
+                            <td class="fw-bold text-danger">{{ suspicious_count }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Confirmed Fraud (Inspected):</td>
+                            <td class="fw-bold text-danger">{{ confirmed_fraud }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">False Positive Alerts:</td>
+                            <td class="fw-bold text-success">{{ false_positives }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <h6 class="fw-bold text-dark mt-4 mb-2"><i class="fa-solid fa-lightbulb text-warning"></i> Decision Support Context</h6>
+                <p class="small text-muted mb-0" style="line-height: 1.6;">
+                    The machine-learning classification model output provides a predictive anomaly indicator. It serves to optimize and prioritize physical inspectors' resources to cut down Non-Technical Loss (NTL) from meter tamperings or bypasses. It does not provide legal proof of criminal intent.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ML Run Details -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-brain text-success me-2"></i> Classifier Run Evaluation</h5>
+            </div>
+            <div class="card-body">
+                {% if latest_run %}
+                    <table class="table table-sm table-borderless small mb-4">
+                        <tbody>
+                            <tr>
+                                <td class="fw-semibold text-muted" style="width: 150px;">Last Run Time:</td>
+                                <td class="fw-semibold text-dark">{{ latest_run.created_at|date:"Y-m-d H:i:s" }}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-semibold text-muted">Selected Model:</td>
+                                <td><span class="badge bg-primary px-3 py-1">{{ latest_run.model_name }}</span></td>
+                            </tr>
+                            <tr>
+                                <td class="fw-semibold text-muted">Dataset Ingest Size:</td>
+                                <td class="fw-semibold">{{ latest_run.dataset_size }} customers</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-semibold text-muted">Training Duration:</td>
+                                <td>{{ latest_run.training_time|floatformat:4 }} seconds</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <h6 class="fw-bold text-dark mb-2">Performance Metrics:</h6>
+                    <div class="row text-center">
+                        <div class="col-3 border-end">
+                            <div class="text-muted" style="font-size: 0.75rem;">Accuracy</div>
+                            <div class="fw-bold text-dark fs-5 mt-1">{{ latest_run.accuracy|floatformat:2 }}</div>
+                        </div>
+                        <div class="col-3 border-end">
+                            <div class="text-muted" style="font-size: 0.75rem;">Precision</div>
+                            <div class="fw-bold text-dark fs-5 mt-1">{{ latest_run.precision|floatformat:2 }}</div>
+                        </div>
+                        <div class="col-3 border-end">
+                            <div class="text-muted" style="font-size: 0.75rem;">Recall</div>
+                            <div class="fw-bold text-dark fs-5 mt-1">{{ latest_run.recall|floatformat:2 }}</div>
+                        </div>
+                        <div class="col-3">
+                            <div class="text-muted" style="font-size: 0.75rem;">F1-Score</div>
+                            <div class="fw-bold text-primary fs-5 mt-1">{{ latest_run.f1|floatformat:2 }}</div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="p-5 text-center text-muted">
+                        <i class="fa-solid fa-triangle-exclamation fs-1 text-warning mb-2"></i>
+                        <p class="mb-0 fw-semibold">No models trained yet.</p>
+                        <p class="small">Train classifier models under the "Model Training" section to log run metrics.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

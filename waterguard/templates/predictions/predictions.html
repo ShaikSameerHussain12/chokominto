@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block title %}Fraud Predictions Log - WaterGuard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="fw-bold text-dark mb-1">Anomaly Prediction Engine</h2>
+    <p class="text-muted">Apply trained classifiers to score customer consumption profiles and identify suspected meter manipulations or billing errors.</p>
+</div>
+
+<div class="row">
+    <!-- Trigger scoring -->
+    <div class="col-lg-4 mb-4">
+        <div class="form-card h-100">
+            <h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-play text-primary me-2"></i> Run Batch Scoring</h5>
+            <hr class="mt-0">
+            
+            <form method="POST">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label for="id_model_name" class="form-label fw-semibold text-muted small">Select Scoring Model</label>
+                    <select name="model_name" id="id_model_name" class="form-select">
+                        {% for model in models_trained %}
+                            <option value="{{ model }}" {% if model == 'SVM' %}selected{% endif %}>{{ model }} Classifier</option>
+                        {% empty %}
+                            <option value="SVM" selected>SVM (Default)</option>
+                            <option value="KNN">KNN</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="card border-warning bg-warning-subtle mb-4 p-3 small text-warning-emphasis">
+                    <i class="fa-solid fa-circle-exclamation mb-1"></i> Running scoring will execute feature engineering and model prediction on all customers. It creates actionable inspection tasks in the database.
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">
+                    <i class="fa-solid fa-bolt me-2"></i> Generate Predictions
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Scoring Results Breakdown -->
+    <div class="col-lg-8 mb-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-square-poll-vertical text-success me-2"></i> Scoring Results Summary</h5>
+            </div>
+            <div class="card-body">
+                {% if results %}
+                    <div class="row text-center my-3">
+                        <div class="col-4 border-end">
+                            <div class="text-muted small fw-semibold text-uppercase">Total Analyzed</div>
+                            <div class="fs-2 fw-bold text-dark mt-1">{{ results.analyzed }}</div>
+                        </div>
+                        <div class="col-4 border-end">
+                            <div class="text-muted small fw-semibold text-uppercase">Normal</div>
+                            <div class="fs-2 fw-bold text-teal mt-1">{{ results.normal }}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-muted small fw-semibold text-uppercase">Suspicious</div>
+                            <div class="fs-2 fw-bold text-danger mt-1">{{ results.suspicious }}</div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <h6 class="fw-bold mb-3 text-muted text-uppercase small">Risk Levels Breakdown</h6>
+                    <div class="row">
+                        <div class="col-md-4 mb-2">
+                            <div class="p-3 border rounded bg-danger-subtle text-danger-emphasis">
+                                <div class="fw-bold small">HIGH RISK (p &ge; 80%)</div>
+                                <div class="fs-3 fw-bold mt-1">{{ results.high_risk }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <div class="p-3 border rounded bg-warning-subtle text-warning-emphasis">
+                                <div class="fw-bold small">MEDIUM RISK (50% - 79%)</div>
+                                <div class="fs-3 fw-bold mt-1">{{ results.med_risk }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <div class="p-3 border rounded bg-success-subtle text-success-emphasis">
+                                <div class="fw-bold small">LOW RISK (p &lt; 50%)</div>
+                                <div class="fs-3 fw-bold mt-1">{{ results.low_risk }}</div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="py-5 text-center text-muted">
+                        <i class="fa-solid fa-list-check fs-1 mb-2"></i>
+                        <p class="mb-0 fw-semibold">No predictions calculated in this session.</p>
+                        <p class="small">Use the panel on the left to select a trained classifier and score the database.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Historical Logs Table -->
+<div class="custom-table-card">
+    <div class="custom-table-header">
+        <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-database text-secondary me-2"></i> Recent Predictions Log</h5>
+        <a href="{% url 'fraud_alerts' %}" class="btn btn-outline-danger btn-sm fw-semibold">Inspect Suspicious List</a>
+    </div>
+    {% if latest_predictions %}
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Customer ID</th>
+                    <th>Model Used</th>
+                    <th>Prediction</th>
+                    <th>Fraud Probability</th>
+                    <th>Risk Rating</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in latest_predictions %}
+                    <tr>
+                        <td class="fw-bold"><a href="{% url 'customer_detail' p.customer_id %}" class="text-decoration-none">{{ p.customer_id }}</a></td>
+                        <td><span class="badge bg-secondary">{{ p.model_name }}</span></td>
+                        <td>
+                            <span class="badge bg-{% if p.predicted_class == 1 %}danger{% else %}success{% endif %}">
+                                {% if p.predicted_class == 1 %}Suspicious{% else %}Normal{% endif %}
+                            </span>
+                        </td>
+                        <td class="fw-semibold">{{ p.probability|floatformat:4 }}</td>
+                        <td>
+                            <span class="badge-risk {{ p.risk_level }}">{{ p.risk_level }}</span>
+                        </td>
+                        <td>{{ p.created_at|date:"Y-m-d H:i:s" }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="p-4 text-center text-muted">
+            No history. Click "Generate Predictions" to score dataset.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,165 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}WaterGuard - Water Anomaly Detector{% endblock %}</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Custom Theme styles -->
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+    <!-- ChartJS for Graphing -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+    <div class="dashboard-container">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <a href="{% url 'home' %}" class="brand">
+                <i class="fa-solid fa-droplet text-info"></i>
+                <span>WaterGuard</span>
+            </a>
+            
+            <ul class="sidebar-menu">
+                {% if user.is_staff or user.is_superuser %}
+                    <!-- Admin Navigation -->
+                    <li class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                        <a href="{% url 'dashboard' %}">
+                            <i class="fa-solid fa-chart-line"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="{% if request.resolver_match.url_name == 'customers' or request.resolver_match.url_name == 'customer_detail' %}active{% endif %}">
+                        <a href="{% url 'customers' %}">
+                            <i class="fa-solid fa-users"></i> Customer Directory
+                        </a>
+                    </li>
+                    <li class="{% if request.resolver_match.url_name == 'upload_dataset' %}active{% endif %}">
+                        <a href="{% url 'upload_dataset' %}">
+                            <i class="fa-solid fa-file-arrow-up"></i> Upload Dataset
+                        </a>
+                    </li>
+                    <li class="{% if request.resolver_match.url_name == 'model_training' %}active{% endif %}">
+                        <a href="{% url 'model_training' %}">
+                            <i class="fa-solid fa-brain"></i> Model Training
+                        </a>
+                    </li>
+                    <li class="{% if request.resolver_match.url_name == 'predictions' %}active{% endif %}">
+                        <a href="{% url 'predictions' %}">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Predictions Log
+                        </a>
+                    </li>
+                    <li class="{% if request.resolver_match.url_name == 'fraud_alerts' %}active{% endif %}">
+                        <a href="{% url 'fraud_alerts' %}">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Fraud Alerts
+                        </a>
+                    </li>
+                    <li class="{% if request.resolver_match.url_name == 'graphs' %}active{% endif %}">
+                        <a href="{% url 'graphs' %}">
+                            <i class="fa-solid fa-chart-pie"></i> Graph Analysis
+                        </a>
+                    </li>
+                    <li class="{% if request.resolver_match.url_name == 'investigations' %}active{% endif %}">
+                        <a href="{% url 'investigations' %}">
+                            <i class="fa-solid fa-magnifying-glass-chart"></i> Inspections Pipeline
+                        </a>
+                    </li>
+                    <li class="{% if request.resolver_match.url_name == 'admin_feedback' or request.resolver_match.url_name == 'admin_feedback_detail' %}active{% endif %}">
+                        <a href="{% url 'admin_feedback' %}">
+                            <i class="fa-solid fa-comments"></i> Customer Feedback
+                        </a>
+                    </li>
+                    <li class="{% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
+                        <a href="{% url 'reports' %}">
+                            <i class="fa-solid fa-file-invoice"></i> System Reports
+                        </a>
+                    </li>
+                {% else %}
+                    <!-- Customer Navigation -->
+                    <li class="{% if request.resolver_match.url_name == 'user_profile' %}active{% endif %}">
+                        <a href="{% url 'user_profile' %}">
+                            <i class="fa-solid fa-user"></i> My Profile
+                        </a>
+                    </li>
+                    <li class="{% if request.resolver_match.url_name == 'user_consumption' %}active{% endif %}">
+                        <a href="{% url 'user_consumption' %}">
+                            <i class="fa-solid fa-gauge-high"></i> Consumption Log
+                        </a>
+                    </li>
+                    <li class="{% if request.resolver_match.url_name == 'user_graphs' %}active{% endif %}">
+                        <a href="{% url 'user_graphs' %}">
+                            <i class="fa-solid fa-chart-area"></i> Usage Graphs
+                        </a>
+                    </li>
+                    <li class="{% if request.resolver_match.url_name == 'user_feedback' %}active{% endif %}">
+                        <a href="{% url 'user_feedback' %}">
+                            <i class="fa-solid fa-paper-plane"></i> Submit Feedback
+                        </a>
+                    </li>
+                {% endif %}
+                
+                <li class="mt-5 border-top border-secondary pt-3">
+                    <a href="{% url 'logout' %}" class="text-danger">
+                        <i class="fa-solid fa-right-from-bracket"></i> Logout
+                    </a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Body -->
+        <main class="main-content">
+            
+            <!-- Top Navbar -->
+            <header class="top-navbar">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted">
+                        {% if user.is_staff or user.is_superuser %}
+                            <strong>Role:</strong> Utility Administrator
+                        {% else %}
+                            <strong>Role:</strong> Customer Portal
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <span class="fw-semibold text-dark">{{ user.email }}</span>
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 35px; height: 35px;">
+                        <i class="fa-solid fa-user-tie"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Dynamic Content Wrapper -->
+            <div class="content-wrapper">
+                
+                <!-- Messages/Alerts Area -->
+                {% if messages %}
+                    <div class="messages-container">
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% block content %}{% endblock %}
+                
+            </div>
+            
+        </main>
+
+    </div>
+
+    <!-- Bootstrap 5 Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

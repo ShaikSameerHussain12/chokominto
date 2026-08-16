@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}Suspicious Customer Alerts - WaterGuard{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex justify-content-between align-items-center">
+    <div>
+        <h2 class="fw-bold text-dark mb-1">Active Fraud Alerts</h2>
+        <p class="text-muted mb-0">Prioritized suspicious customers flagged by SVM/KNN classifiers for verification.</p>
+    </div>
+</div>
+
+<!-- Search & Filters -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label for="id_search" class="form-label fw-semibold small text-muted">Search Customer ID</label>
+                <input type="text" name="q" id="id_search" value="{{ q }}" class="form-control" placeholder="C10001...">
+            </div>
+            
+            <div class="col-md-3">
+                <label for="id_risk" class="form-label fw-semibold small text-muted">Risk Rating</label>
+                <select name="risk" id="id_risk" class="form-select">
+                    <option value="" {% if not risk %}selected{% endif %}>All Risk Ratings</option>
+                    {% for r in risk_choices %}
+                        <option value="{{ r }}" {% if risk == r %}selected{% endif %}>{{ r }} Risk</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label for="id_status" class="form-label fw-semibold small text-muted">Inspection Status</label>
+                <select name="status" id="id_status" class="form-select">
+                    <option value="" {% if not status %}selected{% endif %}>All Inspection Statuses</option>
+                    {% for s in status_choices %}
+                        <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100 py-2">
+                    <i class="fa-solid fa-filter me-1"></i> Apply Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Active Alerts Table -->
+<div class="custom-table-card">
+    <div class="custom-table-header">
+        <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-bell text-danger me-2"></i> Flagged Suspicious List</h5>
+        <span class="badge bg-danger-subtle text-danger px-3 py-2 fw-bold">Alert Count: {{ page_obj.paginator.count }}</span>
+    </div>
+    
+    {% if page_obj %}
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Customer ID</th>
+                    <th>Location</th>
+                    <th>Meter Type</th>
+                    <th>Model</th>
+                    <th>Fraud Prob</th>
+                    <th>Risk level</th>
+                    <th>Inspection Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in page_obj %}
+                    <tr>
+                        <td class="fw-bold"><a href="{% url 'customer_detail' item.prediction.customer_id %}" class="text-decoration-none">{{ item.prediction.customer_id }}</a></td>
+                        <td>{{ item.profile.location }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ item.profile.meter_type }}</span></td>
+                        <td><span class="badge bg-secondary">{{ item.prediction.model_name }}</span></td>
+                        <td class="fw-bold">{{ item.prediction.probability|floatformat:4 }}</td>
+                        <td>
+                            <span class="badge-risk {{ item.prediction.risk_level }}">{{ item.prediction.risk_level }}</span>
+                        </td>
+                        <td>
+                            <span class="badge rounded-pill bg-{% if item.investigation.status == 'Confirmed Fraud' %}danger{% elif item.investigation.status == 'False Positive' %}success{% else %}warning{% endif %} text-uppercase" style="font-size: 0.7rem;">
+                                {{ item.investigation.status|default:"Pending" }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{% url 'customer_detail' item.prediction.customer_id %}" class="btn btn-sm btn-outline-primary py-1 px-3">
+                                Inspect
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- Pagination controls -->
+        {% if page_obj.has_other_pages %}
+            <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                <span class="text-muted small">Showing page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?q={{ q }}&risk={{ risk }}&status={{ status }}&page={{ page_obj.previous_page_number }}">Previous</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for n in page_obj.paginator.page_range %}
+                            <li class="page-item {% if page_obj.number == n %}active{% endif %}">
+                                <a class="page-link" href="?q={{ q }}&risk={{ risk }}&status={{ status }}&page={{ n }}">{{ n }}</a>
+                            </li>
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?q={{ q }}&risk={{ risk }}&status={{ status }}&page={{ page_obj.next_page_number }}">Next</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="p-5 text-center text-muted">
+            <i class="fa-solid fa-circle-check fs-2 text-success mb-2"></i>
+            <p class="mb-0 fw-semibold">No active alerts match current filter criteria.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

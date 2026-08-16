@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Dataset - WaterGuard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="fw-bold text-dark mb-1">Dataset Ingestion</h2>
+    <p class="text-muted">Upload transaction-level consumption files (CSV or Excel formats) to feed the anomaly detection pipeline.</p>
+</div>
+
+<div class="row">
+    <!-- Upload Card -->
+    <div class="col-lg-5 mb-4">
+        <div class="form-card">
+            <h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-file-arrow-up text-primary me-2"></i> Ingest New File</h5>
+            <hr class="mt-0">
+            
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label class="form-label fw-semibold text-muted small">Select CSV or Excel Spreadsheet</label>
+                    {{ form.file }}
+                    <div class="form-text mt-2 small text-muted">
+                        Accepted columns: <code>customer_id</code>, <code>date</code>, <code>consumption</code> (required). Optional columns: <code>billing_amount</code>, <code>location</code>, <code>customer_type</code>, <code>meter_type</code>, <code>fraud_class</code>.
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+                    <i class="fa-solid fa-cloud-arrow-up me-2"></i> Ingest and Validate
+                </button>
+            </form>
+        </div>
+        
+        <!-- Validation guidelines card -->
+        <div class="card mt-4 border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-shield-halved text-success me-2"></i> Automated Preprocessing Steps</h6>
+                <ul class="small text-muted ps-3 mb-0" style="line-height: 1.6;">
+                    <li><strong>Deduplication:</strong> Removes double entries for the same customer-month.</li>
+                    <li><strong>Negative Clean:</strong> Absolute values are taken for resets; flags are set for modeling.</li>
+                    <li><strong>Imputation:</strong> Missing consumption points are filled using historical linear interpolation.</li>
+                    <li><strong>Outliers Capping:</strong> Trims extremely high keyboard entry errors at the 99.9th percentile.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Ingestion History List -->
+    <div class="col-lg-7 mb-4">
+        <div class="custom-table-card">
+            <div class="custom-table-header">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-clock-rotate-left text-info me-2"></i> Ingestion History</h5>
+            </div>
+            {% if uploads %}
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Filename</th>
+                            <th>Ingested At</th>
+                            <th>Row Count</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for upload in uploads %}
+                            <tr>
+                                <td class="fw-semibold text-dark">{{ upload.filename }}</td>
+                                <td>{{ upload.uploaded_at|date:"Y-m-d H:i" }}</td>
+                                <td>{{ upload.row_count|default:"0" }}</td>
+                                <td>
+                                    <span class="badge bg-{% if upload.upload_status == 'Completed' %}success{% elif upload.upload_status == 'Processing' %}info{% elif upload.upload_status == 'Failed' %}danger{% else %}warning{% endif %}">
+                                        {{ upload.upload_status }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="p-4 text-center text-muted">
+                    <i class="fa-solid fa-box-open fs-2 mb-2 text-secondary"></i>
+                    <p class="mb-0">No upload history found. Upload a spreadsheet to populate the database.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

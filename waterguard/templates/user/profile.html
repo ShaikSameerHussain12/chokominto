@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}My Profile - WaterGuard Customer Portal{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="fw-bold text-dark mb-1">Customer Portal</h2>
+    <p class="text-muted">Manage your contact information, review usage statistics, and contact support.</p>
+</div>
+
+<div class="row">
+    <!-- Profile Edit Form -->
+    <div class="col-lg-6 mb-4">
+        <div class="form-card">
+            <h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-user-gear text-primary me-2"></i> Update Contact Details</h5>
+            <hr class="mt-0">
+            
+            <form method="POST">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label fw-semibold text-muted small">Customer Account ID</label>
+                    <input type="text" class="form-control" value="{{ profile.customer_id }}" readonly disabled>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold text-muted small">Meter Configuration</label>
+                    <input type="text" class="form-control" value="{{ profile.meter_type }} Meter ({{ profile.customer_type }})" readonly disabled>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold text-muted small">Registered Location</label>
+                    <input type="text" class="form-control" value="{{ profile.location }}" readonly disabled>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="id_phone" class="form-label fw-semibold text-muted small">Phone Number</label>
+                    {{ form.phone }}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="id_address" class="form-label fw-semibold text-muted small">Delivery Address</label>
+                    {{ form.address }}
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+                    <i class="fa-solid fa-floppy-disk me-2"></i> Update Details
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Account Status and Statistics -->
+    <div class="col-lg-6 mb-4">
+        <!-- Account Status card -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-shield-check text-success me-2"></i> Account Status</h5>
+            </div>
+            <div class="card-body">
+                {% if is_blocked %}
+                    <div class="alert alert-danger mb-0">
+                        <h6 class="fw-bold"><i class="fa-solid fa-triangle-exclamation"></i> Account Suspended</h6>
+                        <p class="small mb-0 mt-1">This water service account has been suspended by management. Please contact billing/support immediately to resolve outstanding alerts or verify your meter condition.</p>
+                    </div>
+                {% else %}
+                    <div class="alert alert-success mb-0">
+                        <h6 class="fw-bold"><i class="fa-solid fa-circle-check"></i> Account in Good Standing</h6>
+                        <p class="small mb-0 mt-1">Your water service is fully active. The automated fraud detection engine shows standard consumption matching your baseline.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Summary Stats card -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-chart-column text-info me-2"></i> Consumption Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-3">
+                    <div class="col-4 border-end">
+                        <div class="text-muted small">Total Readings</div>
+                        <div class="fs-3 fw-bold text-dark">{{ aggs.count }}</div>
+                    </div>
+                    <div class="col-4 border-end">
+                        <div class="text-muted small">Avg Monthly</div>
+                        <div class="fs-3 fw-bold text-dark">{{ aggs.avg|default:"0"|floatformat:1 }} m³</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-muted small">Max Monthly</div>
+                        <div class="fs-3 fw-bold text-dark">{{ aggs.max|default:"0"|floatformat:1 }} m³</div>
+                    </div>
+                </div>
+                <div class="text-center text-muted small mt-2">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Reporting active since 2018.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

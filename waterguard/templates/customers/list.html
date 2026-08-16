@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block title %}Customer Directory - WaterGuard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="fw-bold text-dark mb-1">Customer Directory</h2>
+    <p class="text-muted">Explore all registered accounts, average consumption metrics, and active prediction flags.</p>
+</div>
+
+<!-- Search & Filters -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label for="id_search" class="form-label fw-semibold small text-muted">Search ID or Email</label>
+                <input type="text" name="q" id="id_search" value="{{ q }}" class="form-control" placeholder="C10001 or email...">
+            </div>
+            
+            <div class="col-md-3">
+                <label for="id_type" class="form-label fw-semibold small text-muted">Customer Type</label>
+                <select name="type" id="id_type" class="form-select">
+                    <option value="" {% if not type %}selected{% endif %}>All Types</option>
+                    {% for t in types %}
+                        <option value="{{ t }}" {% if type == t %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label for="id_loc" class="form-label fw-semibold small text-muted">Location</label>
+                <select name="location" id="id_loc" class="form-select">
+                    <option value="" {% if not location_filter %}selected{% endif %}>All Locations</option>
+                    {% for l in locations %}
+                        <option value="{{ l }}" {% if location_filter == l %}selected{% endif %}>{{ l }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100 py-2">
+                    <i class="fa-solid fa-magnifying-glass me-1"></i> Search
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Directory Card -->
+<div class="custom-table-card">
+    <div class="custom-table-header">
+        <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-users text-secondary me-2"></i> All Customer Records</h5>
+        <span class="badge bg-secondary px-3 py-2 fw-bold">Records found: {{ page_obj.paginator.count }}</span>
+    </div>
+    
+    {% if page_obj %}
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Customer ID</th>
+                    <th>Email Account</th>
+                    <th>Type</th>
+                    <th>Location</th>
+                    <th>Avg Monthly Usage</th>
+                    <th>Prediction</th>
+                    <th>Risk</th>
+                    <th>Access status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in page_obj %}
+                    <tr>
+                        <td class="fw-bold">{{ c.profile.customer_id }}</td>
+                        <td>{{ c.profile.user.email }}</td>
+                        <td><span class="badge bg-secondary-subtle text-secondary-emphasis">{{ c.profile.customer_type }}</span></td>
+                        <td>{{ c.profile.location }}</td>
+                        <td class="fw-semibold text-dark">{{ c.avg_consumption|floatformat:2 }} m³</td>
+                        <td>
+                            {% if c.prediction %}
+                                <span class="badge bg-{% if c.prediction.predicted_class == 1 %}danger{% else %}success{% endif %}">
+                                    {% if c.prediction.predicted_class == 1 %}Suspicious{% else %}Normal{% endif %}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-muted border">Unscored</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if c.prediction %}
+                                <span class="badge-risk {{ c.prediction.risk_level }}">{{ c.prediction.risk_level }}</span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if c.is_blocked %}
+                                <span class="badge bg-danger"><i class="fa-solid fa-lock me-1"></i> Blocked</span>
+                            {% else %}
+                                <span class="badge bg-success"><i class="fa-solid fa-lock-open me-1"></i> Active</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'customer_detail' c.profile.customer_id %}" class="btn btn-sm btn-outline-primary py-1 px-3">
+                                View Profile
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- Pagination controls -->
+        {% if page_obj.has_other_pages %}
+            <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                <span class="text-muted small">Showing page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?q={{ q }}&type={{ type }}&location={{ location_filter }}&page={{ page_obj.previous_page_number }}">Previous</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for n in page_obj.paginator.page_range %}
+                            <li class="page-item {% if page_obj.number == n %}active{% endif %}">
+                                <a class="page-link" href="?q={{ q }}&type={{ type }}&location={{ location_filter }}&page={{ n }}">{{ n }}</a>
+                            </li>
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?q={{ q }}&type={{ type }}&location={{ location_filter }}&page={{ page_obj.next_page_number }}">Next</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="p-5 text-center text-muted">
+            <i class="fa-solid fa-box-open fs-2 mb-2"></i>
+            <p class="mb-0">No customers found matching search criteria.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

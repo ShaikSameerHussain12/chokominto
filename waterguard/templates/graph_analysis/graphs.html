@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+
+{% block title %}System Graph Analysis - WaterGuard{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="fw-bold text-dark mb-1">Graph Analysis Dashboard</h2>
+    <p class="text-muted">Interactive visual analysis of water consumption patterns, risk rating metrics, and model benchmarks.</p>
+</div>
+
+{% if normal == 0 and suspicious == 0 %}
+    <!-- Empty Predictions Warning -->
+    <div class="card border-warning mb-4 shadow-sm bg-warning-subtle">
+        <div class="card-body p-4 text-warning-emphasis">
+            <h5 class="fw-bold"><i class="fa-solid fa-triangle-exclamation me-2"></i> Predictions Data Pending</h5>
+            <p class="mb-3 small">The classification and risk metrics below are empty because no fraud prediction runs have been generated yet. You must first train the machine learning models and run batch scoring to populate the prediction tables.</p>
+            <div class="d-flex gap-2">
+                <a href="{% url 'model_training' %}" class="btn btn-warning btn-sm fw-bold">
+                    <i class="fa-solid fa-brain me-1"></i> Step 1: Train Models
+                </a>
+                <a href="{% url 'predictions' %}" class="btn btn-outline-warning btn-sm fw-bold text-dark">
+                    <i class="fa-solid fa-bolt me-1"></i> Step 2: Generate Predictions
+                </a>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<div class="row">
+    <!-- Row 1: Fraud Rate & Risk Level -->
+    <div class="col-md-6 mb-4">
+        <div class="chart-container">
+            <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-pie text-teal me-2"></i> Normal vs Suspicious Customers</h5>
+            <div style="height: 250px; position: relative;">
+                <canvas id="fraudPieChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="chart-container">
+            <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-triangle-exclamation text-danger me-2"></i> Risk Rating Frequencies</h5>
+            <div style="height: 250px; position: relative;">
+                <canvas id="riskBarChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Row 2: Monthly Average Trend & Location Alert Density -->
+    <div class="col-md-6 mb-4">
+        <div class="chart-container">
+            <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-line text-primary me-2"></i> Monthly Water Usage baseline (All Accounts)</h5>
+            <div style="height: 250px; position: relative;">
+                <canvas id="monthlyTrendChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="chart-container">
+            <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-earth-americas text-success me-2"></i> Suspicious Cases by Location</h5>
+            <div style="height: 250px; position: relative;">
+                <canvas id="locationAlertsChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Row 3: Classifier Benchmark comparison -->
+    <div class="col-12 mb-4">
+        <div class="chart-container">
+            <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-scale-balanced text-purple me-2"></i> Model Comparison (SVM vs KNN Score Metrics %)</h5>
+            <div style="height: 300px; position: relative;">
+                <canvas id="modelComparisonChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Data inputs
+        const months = JSON.parse('{{ months_json|safe }}');
+        const monthlyAvg = JSON.parse('{{ monthly_avg_json|safe }}');
+        
+        const locLabels = JSON.parse('{{ location_labels_json|safe }}');
+        const locValues = JSON.parse('{{ location_values_json|safe }}');
+        
+        const svmMetrics = JSON.parse('{{ svm_metrics_json|safe }}');
+        const knnMetrics = JSON.parse('{{ knn_metrics_json|safe }}');
+        
+        // 1. Normal vs Suspicious (Doughnut)
+        new Chart(document.getElementById('fraudPieChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Normal', 'Suspicious'],
+                datasets: [{
+                    data: [{{ normal }}, {{ suspicious }}],
+                    backgroundColor: ['#008080', '#ef4444'],
+                    borderWidth: 1.5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+        
+        // 2. Risk Rating Frequencies (Bar)
+        new Chart(document.getElementById('riskBarChart'), {
+            type: 'bar',
+            data: {
+                labels: ['LOW', 'MEDIUM', 'HIGH'],
+                datasets: [{
+                    label: 'Customers count',
+                    data: [{{ risk_low }}, {{ risk_med }}, {{ risk_high }}],
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+        
+        // 3. Monthly Usage Baseline (Line)
+        new Chart(document.getElementById('monthlyTrendChart'), {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [{
+                    label: 'Mean Monthly Consumption (m³)',
+                    data: monthlyAvg,
+                    borderColor: '#008080',
+                    backgroundColor: 'rgba(0, 128, 128, 0.05)',
+                    fill: true,
+                    tension: 0.2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+        
+        // 4. Alerts by Location (Horizontal Bar)
+        new Chart(document.getElementById('locationAlertsChart'), {
+            type: 'bar',
+            data: {
+                labels: locLabels,
+                datasets: [{
+                    label: 'Flagged anomalies',
+                    data: locValues,
+                    backgroundColor: '#1e293b',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { beginAtZero: true }
+                }
+            }
+        });
+        
+        // 5. SVM vs KNN comparison (Grouped Bar)
+        new Chart(document.getElementById('modelComparisonChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Accuracy', 'Precision', 'Recall', 'F1-Score'],
+                datasets: [
+                    {
+                        label: 'SVM Classifier (%)',
+                        data: svmMetrics,
+                        backgroundColor: '#008080'
+                    },
+                    {
+                        label: 'KNN Classifier (%)',
+                        data: knnMetrics,
+                        backgroundColor: '#1e293b'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { min: 0, max: 100 }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

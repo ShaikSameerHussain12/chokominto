@@ -1,0 +1,367 @@
+{% extends 'base.html' %}
+
+{% block title %}Customer Profile: {{ profile.customer_id }} - WaterGuard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{% url 'customers' %}" class="btn btn-outline-secondary btn-sm mb-2"><i class="fa-solid fa-arrow-left"></i> Back to Directory</a>
+        <h2 class="fw-bold text-dark mb-0">Profile Details: {{ profile.customer_id }}</h2>
+    </div>
+    
+    <div>
+        {% if is_blocked %}
+            <form method="POST" action="{% url 'toggle_block' profile.customer_id %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success fw-bold shadow-sm">
+                    <i class="fa-solid fa-lock-open me-1"></i> Unblock Customer Account
+                </button>
+            </form>
+        {% else %}
+            <button type="button" class="btn btn-danger fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#blockModal">
+                <i class="fa-solid fa-lock me-1"></i> Block Customer Account
+            </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Column: Profile Metadata & Statistics -->
+    <div class="col-lg-4 mb-4">
+        <!-- Customer Info Card -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-address-card text-primary me-2"></i> Account Information</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless small mb-0">
+                    <tbody>
+                        <tr>
+                            <td class="fw-semibold text-muted" style="width: 120px;">Customer ID:</td>
+                            <td class="fw-bold text-dark">{{ profile.customer_id }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Customer Type:</td>
+                            <td><span class="badge bg-secondary-subtle text-secondary-emphasis">{{ profile.customer_type }}</span></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Location:</td>
+                            <td>{{ profile.location }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Meter Type:</td>
+                            <td><span class="badge bg-light text-dark border">{{ profile.meter_type }}</span></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Email Link:</td>
+                            <td><code>{{ profile.user.email }}</code></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Phone Number:</td>
+                            <td>{{ profile.phone|default:"Not Provided" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Address:</td>
+                            <td>{{ profile.address|default:"Not Provided" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Status:</td>
+                            <td>
+                                {% if is_blocked %}
+                                    <span class="badge bg-danger">Blocked / Suspended</span>
+                                {% else %}
+                                    <span class="badge bg-success">Active / Standard</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Statistics Card -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-calculator text-success me-2"></i> Consumption Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-3">
+                    <div class="col-6 border-end">
+                        <div class="text-muted small">Mean Monthly</div>
+                        <div class="fs-4 fw-bold text-dark">{{ aggs.avg|default:"0.0"|floatformat:2 }} m³</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted small">Max Recorded</div>
+                        <div class="fs-4 fw-bold text-dark">{{ aggs.max|default:"0.0"|floatformat:2 }} m³</div>
+                    </div>
+                </div>
+                <div class="row text-center">
+                    <div class="col-6 border-end">
+                        <div class="text-muted small">Min Recorded</div>
+                        <div class="fs-4 fw-bold text-dark">{{ aggs.min|default:"0.0"|floatformat:2 }} m³</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted small">Std Deviation</div>
+                        <div class="fs-4 fw-bold text-dark">{{ aggs.std|default:"0.0"|floatformat:2 }} m³</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Update Investigation card -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-magnifying-glass-location text-info me-2"></i> Physical Investigation</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3 small">
+                    <strong>Current status:</strong> 
+                    <span class="badge bg-{% if investigation.status == 'Confirmed Fraud' %}danger{% elif investigation.status == 'False Positive' %}success{% else %}warning{% endif %}">
+                        {{ investigation.status }}
+                    </span>
+                    {% if investigation.investigated_by %}
+                        <br><span class="text-muted">Assigned: {{ investigation.investigated_by.username }}</span>
+                    {% endif %}
+                </div>
+                
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="id_status" class="form-label small fw-semibold">Update Status</label>
+                        {{ form.status }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_remarks" class="form-label small fw-semibold">Inspector Remarks / Notes</label>
+                        {{ form.remarks }}
+                    </div>
+                    <div class="mb-3 form-check">
+                        {{ form.confirmed_fraud }}
+                        <label for="id_confirmed_fraud" class="form-check-label small fw-bold text-danger">Confirm Non-Technical Loss (Fraud)</label>
+                    </div>
+                    <button type="submit" class="btn btn-info w-100 fw-bold">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Save Inspection Report
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column: Graphs, ML predictions, Indicators -->
+    <div class="col-lg-8 mb-4">
+        
+        <!-- ML Prediction Evaluation -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-brain text-purple me-2"></i> Machine Learning Anomaly Score</h5>
+            </div>
+            <div class="card-body">
+                {% if prediction %}
+                    <div class="row align-items-center">
+                        <div class="col-md-5 mb-3 mb-md-0 text-center border-end">
+                            <div class="text-muted small fw-semibold text-uppercase">Anomaly Classification</div>
+                            <div class="fs-3 fw-bold mt-1 text-{% if prediction.predicted_class == 1 %}danger{% else %}success{% endif %}">
+                                {% if prediction.predicted_class == 1 %}SUSPICIOUS{% else %}NORMAL{% endif %}
+                            </div>
+                            <div class="badge-risk {{ prediction.risk_level }} mt-2 px-3 py-2 fs-6">{{ prediction.risk_level }} RISK</div>
+                            <div class="mt-2 text-muted small">Model: {{ prediction.model_name }} (p = {{ prediction.probability|floatformat:4 }})</div>
+                        </div>
+                        <div class="col-md-7 ps-md-4">
+                            <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-circle-info text-warning"></i> Potential Risk Indicators:</h6>
+                            {% if indicators %}
+                                <ul class="small text-danger ps-3 mb-0" style="line-height: 1.6;">
+                                    {% for indicator in indicators %}
+                                        <li>{{ indicator }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="small text-success mb-0"><i class="fa-solid fa-circle-check"></i> Standard baseline match. No alarm parameters triggered.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="p-4 text-center text-muted">
+                        <i class="fa-solid fa-circle-question fs-2 mb-2"></i>
+                        <p class="mb-0">No machine learning score generated for this customer. Retrain models or run prediction batch to score accounts.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Consumption Chart -->
+        <div class="chart-container">
+            <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-line text-primary me-2"></i> Consumption Timeline Trend</h5>
+            <div style="height: 300px; position: relative;">
+                <canvas id="customerConsumptionChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Customer Feedbacks list -->
+        {% if feedbacks %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-comments text-primary me-2"></i> Customer Feedback History</h5>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        {% for f in feedbacks %}
+                            <li class="list-group-item p-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ f.feedback_type }}</span>
+                                    <span class="badge bg-{% if f.status == 'Resolved' %}success{% else %}warning{% endif %}">{{ f.status }}</span>
+                                </div>
+                                <div class="small fw-semibold text-dark my-1">{{ f.message }}</div>
+                                {% if f.response %}
+                                    <div class="card bg-light p-2 small border-0 mt-2 text-muted">
+                                        <strong>Admin Response:</strong> {{ f.response }}
+                                    </div>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Full consumption Table -->
+        <div class="custom-table-card">
+            <div class="custom-table-header">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-list-ol text-secondary me-2"></i> Historical Billing Log</h5>
+            </div>
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Consumption</th>
+                        <th>Billing Amount</th>
+                        <th>Payment Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in records %}
+                        <tr class="{% if r.consumption < 0 %}table-danger-subtle{% endif %}">
+                            <td>{{ r.date|date:"Y-m-d" }}</td>
+                            <td class="fw-semibold">{{ r.consumption|floatformat:2 }} m³</td>
+                            <td>${{ r.billing_amount|floatformat:2 }}</td>
+                            <td>
+                                <span class="badge bg-{% if r.payment_status == 'Paid' %}success{% elif r.payment_status == 'Unpaid' %}danger{% else %}warning{% endif %}">
+                                    {{ r.payment_status }}
+                                </span>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">No monthly billing records exist.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+    </div>
+</div>
+
+<!-- Block Account Modal -->
+<div class="modal fade" id="blockModal" tabindex="-1" aria-labelledby="blockModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="blockModalLabel">Suspend Customer Account</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{% url 'toggle_block' profile.customer_id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="id_reason" class="form-label small fw-semibold">Reason for Suspension</label>
+                        <textarea name="reason" id="id_reason" class="form-control" rows="3" required placeholder="Describe why this account is being suspended..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger btn-sm">Confirm Block</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const dates = JSON.parse('{{ dates_json|safe }}');
+        const consumption = JSON.parse('{{ consumption_json|safe }}');
+        const billing = JSON.parse('{{ billing_json|safe }}');
+        
+        const ctx = document.getElementById('customerConsumptionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [
+                    {
+                        label: 'Consumption (m³)',
+                        data: consumption,
+                        borderColor: '#008080',
+                        backgroundColor: 'rgba(0, 128, 128, 0.05)',
+                        borderWidth: 2,
+                        tension: 0.15,
+                        fill: true,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Billing Amount ($)',
+                        data: billing,
+                        borderColor: '#1e293b',
+                        borderWidth: 1.5,
+                        borderDash: [5, 5],
+                        tension: 0.1,
+                        fill: false,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { font: { family: 'Inter', size: 11 } }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { family: 'Inter', size: 10 } }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Volume (Cubic Meters)',
+                            font: { family: 'Inter', size: 11, weight: 'bold' }
+                        },
+                        ticks: { font: { family: 'Inter', size: 10 } }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Billing Amount ($)',
+                            font: { family: 'Inter', size: 11, weight: 'bold' }
+                        },
+                        grid: { drawOnChartArea: false },
+                        ticks: { font: { family: 'Inter', size: 10 } }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

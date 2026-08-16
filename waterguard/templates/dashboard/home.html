@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - WaterGuard operational support{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold text-dark mb-1">Operational Dashboard</h2>
+        <p class="text-muted mb-0">Detecting anomalies and fraud in water consumption patterns using machine learning.</p>
+    </div>
+    
+    {% if total_records == 0 %}
+        <div>
+            <a href="?seed=true" class="btn btn-warning fw-semibold text-dark shadow-sm">
+                <i class="fa-solid fa-database me-2"></i> Seed Demo Dataset
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+{% if total_records == 0 %}
+    <!-- Empty Database Banner -->
+    <div class="card border-warning mb-4 shadow-sm bg-warning-subtle">
+        <div class="card-body p-4">
+            <h4 class="alert-heading text-warning-emphasis fw-bold"><i class="fa-solid fa-triangle-exclamation me-2"></i> Database is Empty</h4>
+            <p class="mb-3 text-warning-emphasis">To test and run the full end-to-end classification pipeline, the system requires historical water consumption records. You can seed a realistic synthetic dataset of 100 customers with 5 years of history immediately.</p>
+            <a href="?seed=true" class="btn btn-warning btn-sm fw-bold">
+                <i class="fa-solid fa-circle-play me-1"></i> Seed 5-Year Demo Time Series
+            </a>
+        </div>
+    </div>
+{% endif %}
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-title">Total Customers</div>
+            <div class="kpi-value">{{ total_customers }}</div>
+        </div>
+        <div class="kpi-subtitle">Registered in system</div>
+    </div>
+    
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-title">Customers Analyzed</div>
+            <div class="kpi-value">{{ analyzed_count }}</div>
+        </div>
+        <div class="kpi-subtitle">Completed feature extraction</div>
+    </div>
+    
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-title">Suspicious/Fraud</div>
+            <div class="kpi-value text-danger">{{ suspicious_count }}</div>
+        </div>
+        <div class="kpi-subtitle">{{ fraud_pct|floatformat:1 }}% fraud rate flagged</div>
+    </div>
+    
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-title">Best Model</div>
+            <div class="kpi-value text-success">
+                {% if best_model != 'None' %}{{ best_model }}{% else %}N/A{% endif %}
+            </div>
+        </div>
+        <div class="kpi-subtitle">
+            {% if latest_run %}
+                F1 Score: {{ latest_run.f1|floatformat:2 }}
+            {% else %}
+                Model not trained yet
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Top Suspicious Customers -->
+    <div class="col-xl-8 col-lg-7 mb-4">
+        <div class="custom-table-card h-100">
+            <div class="custom-table-header">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-shield-halved text-danger me-2"></i> Top Suspicious Customers</h5>
+                <a href="{% url 'fraud_alerts' %}" class="btn btn-outline-primary btn-sm fw-semibold">View All</a>
+            </div>
+            {% if top_suspicious %}
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Customer ID</th>
+                            <th>Location</th>
+                            <th>Model</th>
+                            <th>Probability</th>
+                            <th>Risk Level</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in top_suspicious %}
+                            <tr>
+                                <td class="fw-semibold">{{ item.prediction.customer_id }}</td>
+                                <td>{{ item.profile.location }}</td>
+                                <td><span class="badge bg-secondary">{{ item.prediction.model_name }}</span></td>
+                                <td class="fw-bold">{{ item.prediction.probability|floatformat:2 }}</td>
+                                <td>
+                                    <span class="badge-risk {{ item.prediction.risk_level }}">{{ item.prediction.risk_level }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge rounded-pill bg-{% if item.investigation.status == 'Confirmed Fraud' %}danger{% elif item.investigation.status == 'False Positive' %}success{% else %}warning{% endif %}">
+                                        {{ item.investigation.status|default:"Pending" }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'customer_detail' item.prediction.customer_id %}" class="btn btn-sm btn-outline-primary py-0 px-2">
+                                        Inspect
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="p-4 text-center text-muted">
+                    <i class="fa-solid fa-circle-check fs-2 text-success mb-2"></i>
+                    <p class="mb-0">No active suspicious cases flagged by models. Complete preprocessing and prediction steps to run analytics.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Mini Charts / Summaries -->
+    <div class="col-xl-4 col-lg-5 mb-4">
+        <div class="chart-container h-100 d-flex flex-column justify-content-between">
+            <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-pie-chart text-primary me-2"></i> Alert Distribution</h5>
+            {% if analyzed_count > 0 %}
+                <div style="height: 220px; position: relative;">
+                    <canvas id="fraudDistributionChart"></canvas>
+                </div>
+                <div class="text-center text-muted small mt-2">
+                    Of {{ analyzed_count }} customers scored, {{ suspicious_count }} exhibit anomalous consumption patterns.
+                </div>
+            {% else %}
+                <div class="py-5 text-center text-muted">
+                    <i class="fa-solid fa-chart-pie fs-1 mb-2"></i>
+                    <p class="mb-0">Predictions not populated. Run SVM/KNN models to display graph.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Investigations -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-magnifying-glass-location text-info me-2"></i> Recent Investigations</h5>
+                <a href="{% url 'investigations' %}" class="btn btn-link text-info text-decoration-none p-0 fw-semibold">View Pipeline</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_investigations %}
+                    <ul class="list-group list-group-flush">
+                        {% for inv in recent_investigations %}
+                            <li class="list-group-item p-3 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="fw-bold mb-0">{{ inv.customer_id }}</h6>
+                                    <span class="text-muted small">Updated: {{ inv.investigated_at|date:"Y-m-d H:i" }}</span>
+                                </div>
+                                <span class="badge bg-{% if inv.status == 'Confirmed Fraud' %}danger{% elif inv.status == 'False Positive' %}success{% else %}warning{% endif %}">
+                                    {{ inv.status }}
+                                </span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="p-4 text-center text-muted">No physical inspections in progress.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Customer Feedback -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-comment-dots text-primary me-2"></i> Recent Customer Feedback</h5>
+                <a href="{% url 'admin_feedback' %}" class="btn btn-link text-primary text-decoration-none p-0 fw-semibold">View Inbox</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_feedbacks %}
+                    <ul class="list-group list-group-flush">
+                        {% for f in recent_feedbacks %}
+                            <li class="list-group-item p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-bold text-dark">{{ f.customer_id }}</span>
+                                    <span class="badge bg-info-subtle text-info">{{ f.feedback_type }}</span>
+                                </div>
+                                <p class="text-muted small mb-1 text-truncate">{{ f.message }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted" style="font-size: 0.75rem;">{{ f.created_at|date:"Y-m-d" }}</span>
+                                    <span class="badge bg-{% if f.status == 'Resolved' %}success{% else %}warning{% endif %} text-uppercase" style="font-size: 0.65rem;">{{ f.status }}</span>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="p-4 text-center text-muted">No customer inquiries submitted yet.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if analyzed_count > 0 %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const ctx = document.getElementById('fraudDistributionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Normal Customers', 'Suspicious Customers'],
+                datasets: [{
+                    data: [{{ normal_count }}, {{ suspicious_count }}],
+                    backgroundColor: ['#008080', '#ef4444'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: { family: 'Inter', size: 11 }
+                        }
+                    }
+                },
+                cutout: '65%'
+            }
+        });
+    });
+</script>
+{% endif %}
+{% endblock %}
